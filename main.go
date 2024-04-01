@@ -568,7 +568,7 @@ func doUpdateCommand(client Client, args []string) {
 		os.Exit(1)
 	}
 
-	if len(args) < 2 {
+	if len(args) < 3 {
 		usage()
 	}
 
