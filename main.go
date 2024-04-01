@@ -599,7 +599,7 @@ func doUpdateCommand(client Client, args []string) {
 
 func doDeleteCommand(client Client, args []string) {
 	usage := func() {
-		fmt.Println("usage: tron delete <path> <json>")
+		fmt.Println("usage: tron delete <path>")
 		os.Exit(1)
 	}
 
