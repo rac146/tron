@@ -564,7 +564,7 @@ func doPostCommand(client Client, args []string) {
 
 func doUpdateCommand(client Client, args []string) {
 	usage := func() {
-		fmt.Println("usage: tron update <path> <json>")
+		fmt.Println("usage: tron update <path> <json> <message-body-type>")
 		os.Exit(1)
 	}
 
@@ -575,6 +575,7 @@ func doUpdateCommand(client Client, args []string) {
 	path := args[0]
 	raw := args[1]
 	messageBodyType := args[2]
+
 	var o map[string]any
 	err := json.Unmarshal([]byte(raw), &o)
 	if err != nil {
@@ -636,10 +637,10 @@ type Preset struct {
 	SwitchedLevelAssignments []href `json:"SwitchedLevelAssignments"`
 }
 
-// specific use case to delete preset assignments from a prset (disable motion detection)
+// specific use case to delete preset assignments from a preset (disable motion detection)
 func doPresetDeleteCommand(client Client, args []string) {
 	usage := func() {
-		fmt.Println("usage: tron delete-assignments <path>")
+		fmt.Println("usage: tron delete-assignments /preset/###")
 		os.Exit(1)
 	}
 
