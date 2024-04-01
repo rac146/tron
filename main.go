@@ -14,6 +14,9 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+//const defaultConfigFile = "../config/lutron_custom/.tronrc"
+//const defaultCertDir = "../config/lutron_custom/"
+
 const defaultConfigFile = ".tronrc"
 const defaultCertDir = ".config/tron/certs"
 
@@ -104,8 +107,14 @@ func main() {
 			doZoneCommand(client, flag.Args()[1:])
 		case "get":
 			doGetCommand(client, flag.Args()[1:])
+		case "delete-assignments":
+			doPresetDeleteCommand(client, flag.Args()[1:])
 		case "post":
 			doPostCommand(client, flag.Args()[1:])
+		case "update":
+			doUpdateCommand(client, flag.Args()[1:])
+		case "delete":
+			doDeleteCommand(client, flag.Args()[1:])
 		case "ping":
 			res, err := client.Ping()
 			if err != nil {
@@ -551,4 +560,118 @@ func doPostCommand(client Client, args []string) {
 	}
 
 	fmt.Println(string(out))
+}
+
+func doUpdateCommand(client Client, args []string) {
+	usage := func() {
+		fmt.Println("usage: tron update <path> <json>")
+		os.Exit(1)
+	}
+
+	if len(args) < 2 {
+		usage()
+	}
+
+	path := args[0]
+	raw := args[1]
+	messageBodyType := args[2]
+	var o map[string]any
+	err := json.Unmarshal([]byte(raw), &o)
+	if err != nil {
+		fmt.Println("error: failed to parse input as JSON:", err)
+		os.Exit(1)
+	}
+	res, err := client.Update(path, o, messageBodyType)
+	if err != nil {
+		fmt.Println("error: request failed:", err)
+		os.Exit(1)
+	}
+
+	out, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		fmt.Println("error: failed to format response as JSON:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(string(out))
+}
+
+func doDeleteCommand(client Client, args []string) {
+	usage := func() {
+		fmt.Println("usage: tron delete <path> <json>")
+		os.Exit(1)
+	}
+
+	if len(args) < 1 {
+		usage()
+	}
+
+	path := args[0]
+
+	res, err := client.Delete(path)
+	if err != nil {
+		fmt.Println("error: request failed:", err)
+		os.Exit(1)
+	}
+
+	out, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		fmt.Println("error: failed to format response as JSON:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(string(out))
+}
+
+type href struct {
+	Href string `json:"href"`
+}
+
+type PresetHeader struct {
+	Preset Preset `json:"Preset"`
+}
+
+type Preset struct {
+	PresetAssignments        []href `json:"PresetAssignments"`
+	SwitchedLevelAssignments []href `json:"SwitchedLevelAssignments"`
+}
+
+// specific use case to delete preset assignments from a prset (disable motion detection)
+func doPresetDeleteCommand(client Client, args []string) {
+	usage := func() {
+		fmt.Println("usage: tron delete-assignments <path>")
+		os.Exit(1)
+	}
+
+	if len(args) < 1 {
+		usage()
+	}
+
+	path := args[0]
+
+	res1, err := client.Get(path)
+
+	var presetResult PresetHeader
+
+	presetOut, err := json.Marshal(res1)
+
+	json.Unmarshal(presetOut, &presetResult)
+
+	for _, element := range presetResult.Preset.PresetAssignments {
+		client.Delete(element.Href)
+	}
+
+	//res, err := client.Delete(path)
+	if err != nil {
+		fmt.Println("error: request failed:", err)
+		os.Exit(1)
+	}
+
+	//out, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		fmt.Println("error: failed to format response as JSON:", err)
+		os.Exit(1)
+	}
+
+	//fmt.Println(string(out))
 }

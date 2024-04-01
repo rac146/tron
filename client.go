@@ -43,10 +43,22 @@ type Request struct {
 	Body           interface{} `json:",omitempty"`
 }
 
+type UpdateRequest struct {
+	CommuniqueType string
+	Header         UpdateRequestHeader
+	Body           interface{} `json:",omitempty"`
+}
+
 type RequestHeader struct {
 	ClientTag   string `json:",omitempty"`
 	RequestType string `json:",omitempty"`
 	URL         string `json:"Url,omitempty"`
+}
+
+type UpdateRequestHeader struct {
+	ClientTag       string `json:",omitempty"`
+	MessageBodyType string `json:",omitempty"`
+	URL             string `json:"Url,omitempty"`
 }
 
 type Response struct {
@@ -476,6 +488,118 @@ func (c *Client) Post(path string, payload any) (map[string]any, error) {
 		}
 		if res.CommuniqueType == "CreateResponse" && res.Header.ClientTag == tag {
 			if res.Header.StatusCode == "201 Created" {
+				return res.Body, nil
+			} else {
+				return fail(fmt.Errorf("received %s status", res.Header.StatusCode))
+			}
+		}
+	}
+}
+
+// Update sends a `UpdateRequest` communique to the controller.
+func (c *Client) Update(path string, payload any, messageBodyType string) (map[string]any, error) {
+	fail := func(err error) (map[string]any, error) { return map[string]any{}, err }
+
+	err := c.dial()
+	if err != nil {
+		return fail(err)
+	}
+	defer c.Close()
+
+	tag := c.generateClientTag()
+
+	req := UpdateRequest{
+		CommuniqueType: "UpdateRequest",
+		Header: UpdateRequestHeader{
+			ClientTag:       tag,
+			MessageBodyType: messageBodyType,
+			URL:             path,
+		},
+		Body: payload,
+	}
+
+	msg, err := json.Marshal(req)
+	if err != nil {
+		return fail(err)
+	}
+
+	err = c.send(msg)
+	if err != nil {
+		return fail(err)
+	}
+
+	for {
+		line, err := c.readLine()
+		if err != nil {
+			return fail(err)
+		}
+
+		var res Response
+		err = json.Unmarshal([]byte(line), &res)
+		if err != nil {
+			return fail(err)
+		}
+
+		if res.CommuniqueType == "ExceptionResponse" && res.Header.ClientTag == tag {
+			return fail(fmt.Errorf("received %s: %s", res.Header.StatusCode, res.Body["Message"]))
+		}
+		if res.Header.ClientTag == tag {
+			if res.Header.StatusCode == "200 OK" {
+				return res.Body, nil
+			} else {
+				return fail(fmt.Errorf("received %s status", res.Header.StatusCode))
+			}
+		}
+	}
+}
+
+// Delete sends a `DeleteRequest` communique to the controller.
+func (c *Client) Delete(path string) (map[string]any, error) {
+	fail := func(err error) (map[string]any, error) { return map[string]any{}, err }
+
+	err := c.dial()
+	if err != nil {
+		return fail(err)
+	}
+	defer c.Close()
+
+	tag := c.generateClientTag()
+
+	req := Request{
+		CommuniqueType: "DeleteRequest",
+		Header: RequestHeader{
+			ClientTag: tag,
+			URL:       path,
+		},
+	}
+
+	msg, err := json.Marshal(req)
+	if err != nil {
+		return fail(err)
+	}
+
+	err = c.send(msg)
+	if err != nil {
+		return fail(err)
+	}
+
+	for {
+		line, err := c.readLine()
+		if err != nil {
+			return fail(err)
+		}
+
+		var res Response
+		err = json.Unmarshal([]byte(line), &res)
+		if err != nil {
+			return fail(err)
+		}
+
+		if res.CommuniqueType == "ExceptionResponse" && res.Header.ClientTag == tag {
+			return fail(fmt.Errorf("received %s: %s", res.Header.StatusCode, res.Body["Message"]))
+		}
+		if res.Header.ClientTag == tag {
+			if res.Header.StatusCode == "200 OK" {
 				return res.Body, nil
 			} else {
 				return fail(fmt.Errorf("received %s status", res.Header.StatusCode))
